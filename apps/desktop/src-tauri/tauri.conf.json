@@ -17,7 +17,8 @@
         "height": 720,
         "minWidth": 900,
         "minHeight": 600,
-        "url": "http://localhost:3000/admin"
+        "url": "http://localhost:3000/admin",
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,WebRtcHideLocalIpsWithMdns --autoplay-policy=no-user-gesture-required"
       }
     ],
     "security": {
