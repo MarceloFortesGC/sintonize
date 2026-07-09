@@ -1,0 +1,26 @@
+{
+  "name": "sintonize",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sistema de transmissão de áudio em rede local para acessibilidade",
+  "packageManager": "pnpm@11.10.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:web": "pnpm --filter @sintonize/web dev",
+    "dev:desktop": "pnpm --filter @sintonize/desktop tauri:dev",
+    "dev:client": "cd apps/client && flutter run -d chrome",
+    "build": "turbo run build",
+    "build:web": "pnpm --filter @sintonize/web build",
+    "build:client": "cd apps/client && flutter build web --base-href /client/ && rm -rf ../web/public/client && mkdir -p ../web/public/client && cp -r build/web/. ../web/public/client/",
+    "build:desktop": "pnpm --filter @sintonize/desktop tauri:build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,195 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { io, type Socket } from "socket.io-client";
+import {
+  EVENTS,
+  SOCKET_PATH,
+  type AckResponse,
+  type CaptureStatus,
+  type RoomJoinedPayload,
+  type RoomUser,
+  type UserJoinedPayload,
+  type UserLeftPayload,
+  type UserUpdatedPayload,
+} from "@sintonize/shared";
+import { MeshManager } from "./webrtc/mesh-manager.js";
+import { createTauriAudioStream, isTauri } from "./tauri-audio.js";
+import {
+  getAudioDevices,
+  getCaptureStatus,
+  getLocalIp,
+  startCapture,
+} from "./tauri-commands.js";
+
+export interface AdminRoomState {
+  connected: boolean;
+  users: RoomUser[];
+  desktopHostId: string | null;
+  localIp: string | null;
+  capture: CaptureStatus;
+  rename: (userId: string, newName: string) => Promise<AckResponse<RoomUser>>;
+  mute: (userId: string, muted: boolean) => Promise<AckResponse<RoomUser>>;
+  kick: (userId: string) => Promise<AckResponse<{ userId: string }>>;
+}
+
+function emitWithAck<T>(
+  socket: Socket,
+  event: string,
+  payload: unknown
+): Promise<AckResponse<T>> {
+  return new Promise((resolve) => {
+    socket.emit(event, payload, (res: AckResponse<T>) => resolve(res));
+  });
+}
+
+export function useAdminRoom(): AdminRoomState {
+  const [connected, setConnected] = useState(false);
+  const [users, setUsers] = useState<RoomUser[]>([]);
+  const [desktopHostId, setDesktopHostId] = useState<string | null>(null);
+  const [localIp, setLocalIp] = useState<string | null>(null);
+  const [capture, setCapture] = useState<CaptureStatus>({
+    active: false,
+    device: null,
+  });
+
+  const socketRef = useRef<Socket | null>(null);
+  const meshRef = useRef<MeshManager | null>(null);
+  const audioStopRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    const socket = io({
+      path: SOCKET_PATH,
+      query: { role: "desktop-host" },
+      transports: ["websocket", "polling"],
+    });
+    socketRef.current = socket;
+
+    socket.on("connect", () => setConnected(true));
+    socket.on("disconnect", () => setConnected(false));
+
+    socket.on(EVENTS.ROOM_JOINED, async (data: RoomJoinedPayload) => {
+      setDesktopHostId(data.desktopHostId);
+      setUsers(data.users);
+
+      if (!meshRef.current) {
+        const mesh = new MeshManager(socket, data.desktopHostId);
+        meshRef.current = mesh;
+        const bridge = await createTauriAudioStream();
+        if (bridge) {
+          audioStopRef.current = bridge.stop;
+          mesh.setLocalStream(bridge.stream);
+        }
+      }
+    });
+
+    socket.on(EVENTS.USER_JOINED, ({ user }: UserJoinedPayload) => {
+      setUsers((prev) => upsert(prev, user));
+    });
+    socket.on(EVENTS.USER_UPDATED, ({ user }: UserUpdatedPayload) => {
+      setUsers((prev) => upsert(prev, user));
+    });
+    socket.on(EVENTS.USER_LEFT, ({ userId }: UserLeftPayload) => {
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+    });
+
+    return () => {
+      meshRef.current?.destroy();
+      meshRef.current = null;
+      audioStopRef.current?.();
+      audioStopRef.current = null;
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, []);
+
+  // Captura de áudio + IP local (apenas no Tauri).
+  useEffect(() => {
+    if (!isTauri()) return;
+    let cancelled = false;
+
+    void (async () => {
+      const ip = await getLocalIp();
+      if (!cancelled && ip) setLocalIp(ip);
+
+      const devices = await getAudioDevices();
+      const loopback = devices.find((d) => d.isLoopback) ?? devices[0];
+      if (loopback) {
+        try {
+          await startCapture(loopback.id);
+        } catch {
+          /* diagnóstico exibido via getCaptureStatus */
+        }
+      }
+    })();
+
+    const poll = setInterval(async () => {
+      const [ip, status] = await Promise.all([
+        getLocalIp(),
+        getCaptureStatus(),
+      ]);
+      if (cancelled) return;
+      if (ip) setLocalIp(ip);
+      setCapture(status);
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+    };
+  }, []);
+
+  const rename = useCallback((userId: string, newName: string) => {
+    const socket = socketRef.current;
+    if (!socket) return Promise.resolve<AckResponse<RoomUser>>({
+      success: false,
+      error: { code: "USER_NOT_FOUND", message: "Sem conexão." },
+    });
+    return emitWithAck<RoomUser>(socket, EVENTS.ADMIN_RENAME_USER, {
+      userId,
+      newName,
+    });
+  }, []);
+
+  const mute = useCallback((userId: string, muted: boolean) => {
+    const socket = socketRef.current;
+    if (!socket) return Promise.resolve<AckResponse<RoomUser>>({
+      success: false,
+      error: { code: "USER_NOT_FOUND", message: "Sem conexão." },
+    });
+    return emitWithAck<RoomUser>(socket, EVENTS.ADMIN_MUTE_USER, {
+      userId,
+      muted,
+    });
+  }, []);
+
+  const kick = useCallback((userId: string) => {
+    const socket = socketRef.current;
+    if (!socket) return Promise.resolve<AckResponse<{ userId: string }>>({
+      success: false,
+      error: { code: "USER_NOT_FOUND", message: "Sem conexão." },
+    });
+    return emitWithAck<{ userId: string }>(socket, EVENTS.ADMIN_KICK_USER, {
+      userId,
+    });
+  }, []);
+
+  return {
+    connected,
+    users,
+    desktopHostId,
+    localIp,
+    capture,
+    rename,
+    mute,
+    kick,
+  };
+}
+
+function upsert(list: RoomUser[], user: RoomUser): RoomUser[] {
+  const idx = list.findIndex((u) => u.id === user.id);
+  if (idx === -1) return [...list, user];
+  const next = [...list];
+  next[idx] = user;
+  return next;
+}
