@@ -15,18 +15,32 @@ interface AudioChunkEvent {
   };
 }
 
+export interface AudioLevelInfo {
+  rms: number;
+  contextState: AudioContextState;
+}
+
+const LEVEL_THROTTLE_MS = 100;
+
 /**
  * Assina o evento `audio-chunk` emitido pelo processo Rust e converte o PCM
  * recebido em um MediaStream reproduzível/transmissível via WebRTC.
  * Retorna null quando não está rodando dentro do Tauri.
+ *
+ * `onLevel` (opcional) recebe o RMS do chunk e o estado do AudioContext, mas
+ * no máximo a cada ~100ms — chunks chegam bem mais rápido que isso e chamar
+ * o callback por chunk sobrecarregaria o React sem ganho perceptível.
  */
-export async function createTauriAudioStream(): Promise<TauriAudioBridge | null> {
+export async function createTauriAudioStream(
+  onLevel?: (info: AudioLevelInfo) => void
+): Promise<TauriAudioBridge | null> {
   if (!isTauri()) return null;
 
   const { listen } = await import("@tauri-apps/api/event");
 
   const audioCtx = new AudioContext({ sampleRate: 48000 });
   const destination = audioCtx.createMediaStreamDestination();
+  let lastLevelEmitAt = 0;
 
   // Autoplay policy pode criar o contexto suspenso (sem gesto do usuário).
   // Suspenso = destination gera silêncio e o ouvinte não escuta nada.
@@ -44,6 +58,19 @@ export async function createTauriAudioStream(): Promise<TauriAudioBridge | null>
     ({ payload }) => {
       const { samples, sampleRate, channels } = payload;
       if (!samples?.length) return;
+
+      if (onLevel) {
+        const nowMs = performance.now();
+        if (nowMs - lastLevelEmitAt >= LEVEL_THROTTLE_MS) {
+          lastLevelEmitAt = nowMs;
+          let sumSquares = 0;
+          for (let i = 0; i < samples.length; i++) {
+            sumSquares += samples[i] * samples[i];
+          }
+          const rms = Math.sqrt(sumSquares / samples.length);
+          onLevel({ rms, contextState: audioCtx.state });
+        }
+      }
 
       const frameCount = Math.floor(samples.length / channels);
       const buffer = audioCtx.createBuffer(

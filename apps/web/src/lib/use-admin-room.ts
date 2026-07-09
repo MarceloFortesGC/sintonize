@@ -25,6 +25,16 @@ import type { AudioDevice } from "@sintonize/shared";
 
 const CAPTURE_DEVICE_KEY = "sintonize.captureDevice";
 
+export interface AdminAudioLevel {
+  rms: number;
+  contextState: string;
+}
+
+export interface AdminPeerState {
+  peerId: string;
+  connectionState: string;
+}
+
 export interface AdminRoomState {
   connected: boolean;
   users: RoomUser[];
@@ -32,6 +42,8 @@ export interface AdminRoomState {
   localIp: string | null;
   capture: CaptureStatus;
   devices: AudioDevice[];
+  audioLevel: AdminAudioLevel | null;
+  peerStates: AdminPeerState[];
   selectDevice: (deviceId: string) => Promise<void>;
   refreshDevices: () => Promise<void>;
   rename: (userId: string, newName: string) => Promise<AckResponse<RoomUser>>;
@@ -59,12 +71,19 @@ export function useAdminRoom(): AdminRoomState {
     device: null,
   });
   const [devices, setDevices] = useState<AudioDevice[]>([]);
+  const [audioLevel, setAudioLevel] = useState<AdminAudioLevel | null>(null);
+  const [peerStates, setPeerStates] = useState<AdminPeerState[]>([]);
 
   const socketRef = useRef<Socket | null>(null);
   const meshRef = useRef<MeshManager | null>(null);
   const audioStopRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    // Flag no escopo do effect (não do handler): ROOM_JOINED pode disparar
+    // mais de uma vez (reconexão) e o desmonte pode ocorrer durante o await
+    // de createTauriAudioStream — sem ela o bridge ficaria órfão.
+    let cancelled = false;
+
     const socket = io({
       path: SOCKET_PATH,
       query: { role: "desktop-host" },
@@ -82,8 +101,14 @@ export function useAdminRoom(): AdminRoomState {
       if (!meshRef.current) {
         const mesh = new MeshManager(socket, data.desktopHostId);
         meshRef.current = mesh;
-        const bridge = await createTauriAudioStream();
+        const bridge = await createTauriAudioStream((info) =>
+          setAudioLevel(info)
+        );
         if (bridge) {
+          if (cancelled) {
+            bridge.stop();
+            return;
+          }
           audioStopRef.current = bridge.stop;
           mesh.setLocalStream(bridge.stream);
         }
@@ -101,6 +126,7 @@ export function useAdminRoom(): AdminRoomState {
     });
 
     return () => {
+      cancelled = true;
       meshRef.current?.destroy();
       meshRef.current = null;
       audioStopRef.current?.();
@@ -151,6 +177,16 @@ export function useAdminRoom(): AdminRoomState {
       cancelled = true;
       clearInterval(poll);
     };
+  }, []);
+
+  // Estado das conexões WebRTC por ouvinte, para a Admin UI (item 3 do
+  // indicador de transmissão). Poll leve — RTCPeerConnection não emite
+  // evento agregado por peer, então lemos o snapshot periodicamente.
+  useEffect(() => {
+    const poll = setInterval(() => {
+      setPeerStates(meshRef.current?.getPeerStates() ?? []);
+    }, 2000);
+    return () => clearInterval(poll);
   }, []);
 
   const refreshDevices = useCallback(async () => {
@@ -210,6 +246,8 @@ export function useAdminRoom(): AdminRoomState {
     localIp,
     capture,
     devices,
+    audioLevel,
+    peerStates,
     selectDevice,
     refreshDevices,
     rename,

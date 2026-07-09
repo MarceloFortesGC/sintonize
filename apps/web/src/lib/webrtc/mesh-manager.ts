@@ -50,6 +50,14 @@ export class MeshManager {
     }
   }
 
+  /** Snapshot do estado de conexão de cada peer, para exibição na Admin UI. */
+  getPeerStates(): { peerId: string; connectionState: RTCPeerConnectionState }[] {
+    return [...this.peers.entries()].map(([peerId, { pc }]) => ({
+      peerId,
+      connectionState: pc.connectionState,
+    }));
+  }
+
   private registerSocketHandlers(): void {
     this.socket.on(
       EVENTS.WEBRTC_PEER_REQUIRED,

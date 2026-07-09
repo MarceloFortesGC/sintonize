@@ -9,6 +9,7 @@ import { useAdminRoom } from "@/lib/use-admin-room";
 import { QrCodePanel } from "./QrCodePanel";
 import { DeviceList } from "./DeviceList";
 import { CapturePanel } from "./CapturePanel";
+import { TransmissionMeter } from "./TransmissionMeter";
 import styles from "./admin.module.css";
 
 function estimateMeshConnections(
@@ -29,6 +30,8 @@ export function AdminClient() {
     localIp,
     capture,
     devices,
+    audioLevel,
+    peerStates,
     selectDevice,
     refreshDevices,
     rename,
@@ -107,6 +110,8 @@ export function AdminClient() {
             onSelect={(id) => void selectDevice(id)}
             onRefresh={() => void refreshDevices()}
           />
+
+          <TransmissionMeter audioLevel={audioLevel} peerStates={peerStates} />
 
           <div className={styles.card} style={{ marginTop: 24 }}>
             <div className={styles.sectionTitle}>Carga da sala</div>
