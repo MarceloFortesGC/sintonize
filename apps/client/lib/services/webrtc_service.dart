@@ -75,11 +75,17 @@ class WebRTCService {
       });
     };
 
-    pc.onTrack = (event) {
+    pc.onTrack = (event) async {
       if (event.streams.isNotEmpty) {
         remoteStreams[peerId] = event.streams.first;
-        onStreamsChanged?.call();
+      } else {
+        // Track sem stream associado (sender remoto sem a=msid):
+        // embrulha em um stream local para não descartar o áudio.
+        final wrapper = await createLocalMediaStream('remote-$peerId');
+        await wrapper.addTrack(event.track);
+        remoteStreams[peerId] = wrapper;
       }
+      onStreamsChanged?.call();
     };
 
     pc.onIceConnectionState = (state) {

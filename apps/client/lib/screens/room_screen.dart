@@ -202,17 +202,23 @@ class _RoomScreenState extends State<RoomScreen> {
                         ),
                       if (c.apIsolationDetected)
                         _banner(
-                          'Não foi possível conectar diretamente na rede. '
-                          'Verifique se o roteador permite comunicação entre '
-                          'dispositivos (desative "Isolamento de Cliente").',
+                          'Conectado à sala, mas o áudio ainda não chegou. '
+                          'Possíveis causas: firewall do computador transmissor '
+                          'bloqueando a conexão, ou roteador com "Isolamento de '
+                          'Cliente" ativado. A conexão continua tentando.',
                         ),
                       if (c.micError != null) _banner(c.micError!),
                       if (c.forcedMuted)
                         _banner('Seu áudio foi silenciado pelo administrador.'),
                       const SizedBox(height: 8),
                       Text(
-                        'Transmitindo: ${c.transmitterCount} fonte(s)',
+                        active
+                            ? 'Recebendo áudio'
+                            : c.status == RoomStatus.connected
+                                ? 'Aguardando transmissão…'
+                                : 'Transmitindo: ${c.transmitterCount} fonte(s)',
                         style: Theme.of(context).textTheme.titleLarge,
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 20),
                       AudioLevelIndicator(active: active),
