@@ -28,6 +28,15 @@ export async function createTauriAudioStream(): Promise<TauriAudioBridge | null>
   const audioCtx = new AudioContext({ sampleRate: 48000 });
   const destination = audioCtx.createMediaStreamDestination();
 
+  // Autoplay policy pode criar o contexto suspenso (sem gesto do usuário).
+  // Suspenso = destination gera silêncio e o ouvinte não escuta nada.
+  const ensureRunning = () => {
+    if (audioCtx.state === "suspended") void audioCtx.resume();
+  };
+  ensureRunning();
+  const resumeTimer = setInterval(ensureRunning, 2000);
+  document.addEventListener("click", ensureRunning);
+
   let nextStartTime = audioCtx.currentTime;
 
   const unlisten = await listen<AudioChunkEvent["payload"]>(
@@ -64,6 +73,8 @@ export async function createTauriAudioStream(): Promise<TauriAudioBridge | null>
   return {
     stream: destination.stream,
     stop: () => {
+      clearInterval(resumeTimer);
+      document.removeEventListener("click", ensureRunning);
       unlisten();
       void audioCtx.close();
     },
