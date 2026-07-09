@@ -21,6 +21,9 @@ import {
   getLocalIp,
   startCapture,
 } from "./tauri-commands.js";
+import type { AudioDevice } from "@sintonize/shared";
+
+const CAPTURE_DEVICE_KEY = "sintonize.captureDevice";
 
 export interface AdminRoomState {
   connected: boolean;
@@ -28,6 +31,9 @@ export interface AdminRoomState {
   desktopHostId: string | null;
   localIp: string | null;
   capture: CaptureStatus;
+  devices: AudioDevice[];
+  selectDevice: (deviceId: string) => Promise<void>;
+  refreshDevices: () => Promise<void>;
   rename: (userId: string, newName: string) => Promise<AckResponse<RoomUser>>;
   mute: (userId: string, muted: boolean) => Promise<AckResponse<RoomUser>>;
   kick: (userId: string) => Promise<AckResponse<{ userId: string }>>;
@@ -52,6 +58,7 @@ export function useAdminRoom(): AdminRoomState {
     active: false,
     device: null,
   });
+  const [devices, setDevices] = useState<AudioDevice[]>([]);
 
   const socketRef = useRef<Socket | null>(null);
   const meshRef = useRef<MeshManager | null>(null);
@@ -112,11 +119,18 @@ export function useAdminRoom(): AdminRoomState {
       const ip = await getLocalIp();
       if (!cancelled && ip) setLocalIp(ip);
 
-      const devices = await getAudioDevices();
-      const loopback = devices.find((d) => d.isLoopback) ?? devices[0];
-      if (loopback) {
+      const found = await getAudioDevices();
+      if (!cancelled) setDevices(found);
+
+      // Prioridade: dispositivo salvo pelo usuário → loopback → primeiro.
+      const saved = localStorage.getItem(CAPTURE_DEVICE_KEY);
+      const initial =
+        found.find((d) => d.id === saved) ??
+        found.find((d) => d.isLoopback) ??
+        found[0];
+      if (initial) {
         try {
-          await startCapture(loopback.id);
+          await startCapture(initial.id);
         } catch {
           /* diagnóstico exibido via getCaptureStatus */
         }
@@ -137,6 +151,21 @@ export function useAdminRoom(): AdminRoomState {
       cancelled = true;
       clearInterval(poll);
     };
+  }, []);
+
+  const refreshDevices = useCallback(async () => {
+    const found = await getAudioDevices();
+    setDevices(found);
+  }, []);
+
+  const selectDevice = useCallback(async (deviceId: string) => {
+    localStorage.setItem(CAPTURE_DEVICE_KEY, deviceId);
+    try {
+      await startCapture(deviceId);
+    } catch {
+      /* diagnóstico exibido via getCaptureStatus */
+    }
+    setCapture(await getCaptureStatus());
   }, []);
 
   const rename = useCallback((userId: string, newName: string) => {
@@ -180,6 +209,9 @@ export function useAdminRoom(): AdminRoomState {
     desktopHostId,
     localIp,
     capture,
+    devices,
+    selectDevice,
+    refreshDevices,
     rename,
     mute,
     kick,
