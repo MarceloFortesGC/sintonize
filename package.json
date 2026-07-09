@@ -14,12 +14,13 @@
     "dev:client": "cd apps/client && flutter run -d chrome",
     "build": "turbo run build",
     "build:web": "pnpm --filter @sintonize/web build",
-    "build:client": "cd apps/client && flutter build web --base-href /client/ && rm -rf ../web/public/client && mkdir -p ../web/public/client && cp -r build/web/. ../web/public/client/",
+    "build:client": "cd apps/client && flutter build web --base-href /client/ && shx rm -rf ../web/public/client && shx mkdir -p ../web/public/client && shx cp -r build/web/. ../web/public/client/",
     "build:desktop": "pnpm --filter @sintonize/desktop tauri:build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
+    "shx": "^0.3.4",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2"
   }
