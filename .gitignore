@@ -41,3 +41,4 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+.gstack/
