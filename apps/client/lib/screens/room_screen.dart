@@ -3,6 +3,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../services/preferences_service.dart';
 import '../services/room_controller.dart';
+import '../services/speaker_guard.dart';
 import '../theme.dart';
 import '../widgets/audio_level_indicator.dart';
 import 'onboarding_name_screen.dart';
@@ -19,7 +20,9 @@ class RoomScreen extends StatefulWidget {
 
 class _RoomScreenState extends State<RoomScreen> {
   late final RoomController _controller;
+  late final SpeakerGuard _speakerGuard;
   bool _redirected = false;
+  bool _likelySpeakerOutput = false;
   late double _masterVolume;
 
   @override
@@ -29,6 +32,14 @@ class _RoomScreenState extends State<RoomScreen> {
     _masterVolume = _controller.masterVolume;
     _controller.addListener(_onChange);
     _controller.connect();
+
+    // Best-effort (só web/Android com confiança suficiente — ver
+    // speaker_guard_web.dart): bloqueia a Room View enquanto o áudio
+    // parecer estar saindo pelo alto-falante do aparelho.
+    _speakerGuard = SpeakerGuard();
+    _speakerGuard.startWatching((likelySpeaker) {
+      if (mounted) setState(() => _likelySpeakerOutput = likelySpeaker);
+    });
   }
 
   void _onChange() {
@@ -57,6 +68,7 @@ class _RoomScreenState extends State<RoomScreen> {
   void dispose() {
     _controller.removeListener(_onChange);
     _controller.dispose();
+    _speakerGuard.dispose();
     super.dispose();
   }
 
@@ -210,6 +222,11 @@ class _RoomScreenState extends State<RoomScreen> {
                       if (c.micError != null) _banner(c.micError!),
                       if (c.forcedMuted)
                         _banner('Seu áudio foi silenciado pelo administrador.'),
+                      if (active && c.silentAudioWarning)
+                        _banner(
+                          'O som está chegando vazio. Verifique a fonte de '
+                          'áudio na Estação Central.',
+                        ),
                       const SizedBox(height: 8),
                       Text(
                         active
@@ -221,7 +238,7 @@ class _RoomScreenState extends State<RoomScreen> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 20),
-                      AudioLevelIndicator(active: active),
+                      AudioLevelIndicator(active: active, level: c.audioLevel),
                       const SizedBox(height: 28),
                       const Text('Volume',
                           style: TextStyle(color: AppColors.textMuted)),
@@ -254,7 +271,110 @@ class _RoomScreenState extends State<RoomScreen> {
                 ),
               ),
             ),
+            // Autoplay bloqueado (comum no primeiro carregamento, sobretudo
+            // no Safari iOS): exige um gesto real do usuário para tocar.
+            if (c.audioPlaybackBlocked) _playAudioOverlay(c),
+            // Best-effort: só cobre a tela quando há confiança de que o
+            // som sai pelo alto-falante do aparelho (ver speaker_guard_web.dart).
+            // O overlay de autoplay tem prioridade — sem o gesto de
+            // desbloqueio não há som em saída nenhuma, e este overlay
+            // cobriria o botão "Tocar áudio".
+            if (_likelySpeakerOutput && !c.audioPlaybackBlocked)
+              _speakerGuardOverlay(),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _playAudioOverlay(RoomController c) {
+    return Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: 0.72),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.volume_off, color: AppColors.text, size: 40),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Toque para ouvir',
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'O navegador bloqueou a reprodução automática do som.',
+                    style: TextStyle(color: AppColors.textMuted),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: () => c.retryAudioPlayback(),
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Tocar áudio'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _speakerGuardOverlay() {
+    return Positioned.fill(
+      child: ColoredBox(
+        color: AppColors.bg.withValues(alpha: 0.96),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.headset, color: AppColors.primary, size: 48),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Use fone de ouvido',
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Conecte um fone de ouvido ou aparelho Bluetooth para '
+                    'ouvir. O som pelo alto-falante foi bloqueado por '
+                    'privacidade.',
+                    style: TextStyle(color: AppColors.textMuted),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Assim que detectarmos o fone, a tela libera sozinha.',
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

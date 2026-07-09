@@ -38,6 +38,15 @@ dependencies:
   socket_io_client: ^3.0.2
   shared_preferences: ^2.3.3
   uuid: ^4.5.1
+  # Dependência transitiva do flutter_webrtc, declarada explicitamente para
+  # acesso web-only ao MediaStream real do navegador (VU meter via Web
+  # Audio API em lib/services/audio_level_meter_web.dart). Mantida na
+  # mesma faixa de versão exigida pelo flutter_webrtc 0.12.x.
+  dart_webrtc: ^1.5.2+hotfix.1
+  # Também transitiva (via flutter_webrtc); usada diretamente nos
+  # helpers web-only (unlock de autoplay, VU meter, detecção de saída de
+  # áudio) em lib/services/*_web.dart.
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:

@@ -8,6 +8,10 @@ class SintonizeConfig {
   static const Duration reconnectUiTimeout = Duration(milliseconds: 30000);
   static const Duration iceNegotiationTimeout = Duration(milliseconds: 10000);
   static const Duration heartbeatInterval = Duration(milliseconds: 5000);
+  // Tempo com o nível de áudio real (RMS) praticamente zerado antes de
+  // avisar o usuário que a transmissão está chegando "vazia" (fonte
+  // silenciosa, não bug de playback).
+  static const Duration silentAudioWarningTimeout = Duration(seconds: 3);
 }
 
 /// Nomes dos eventos Socket.io (events.ts).
