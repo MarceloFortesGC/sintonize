@@ -29,7 +29,7 @@ pub struct CaptureStatus {
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct AudioChunk {
-    samples: Vec<f32>,
+    samples: Vec<i16>,
     sample_rate: u32,
     channels: u16,
 }
@@ -221,8 +221,15 @@ fn find_device(host: &cpal::Host, device_id: &str) -> Result<cpal::Device, Strin
 }
 
 fn emit_chunk(app: &AppHandle, data: &[f32], sample_rate: u32, channels: u16) {
+    // f32 serializado em JSON vira texto decimal enorme por amostra; i16 é
+    // suficiente (Opus recodifica o PCM de qualquer forma) e reduz bastante
+    // o tamanho do payload IPC/JSON.
+    let samples: Vec<i16> = data
+        .iter()
+        .map(|s| (s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16)
+        .collect();
     let chunk = AudioChunk {
-        samples: data.to_vec(),
+        samples,
         sample_rate,
         channels,
     };

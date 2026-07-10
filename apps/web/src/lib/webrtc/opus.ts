@@ -15,9 +15,11 @@ export function tuneOpusSdp(sdp: string): string {
   const params = `useinbandfec=1;minptime=10;usedtx=0;maxaveragebitrate=${bitrate}`;
 
   let replaced = false;
-  const out = lines.map((line) => {
+  let fmtpIdx = -1;
+  const out = lines.map((line, idx) => {
     if (line.startsWith(fmtpPrefix)) {
       replaced = true;
+      fmtpIdx = idx;
       return `${fmtpPrefix}${params}`;
     }
     return line;
@@ -29,7 +31,16 @@ export function tuneOpusSdp(sdp: string): string {
     );
     if (rtpmapIdx >= 0) {
       out.splice(rtpmapIdx + 1, 0, `${fmtpPrefix}${params}`);
+      fmtpIdx = rtpmapIdx + 1;
     }
+  }
+
+  // `minptime=10` no fmtp é só o piso aceito na negociação — não força o
+  // encoder a de fato empacotar frames de 10ms. `a=ptime:10` é o atributo
+  // que expressa o tamanho de frame desejado para a m-line de áudio.
+  const hasPtime = out.some((l) => l.startsWith("a=ptime:"));
+  if (!hasPtime && fmtpIdx >= 0) {
+    out.splice(fmtpIdx + 1, 0, "a=ptime:10");
   }
 
   return out.join("\r\n");
