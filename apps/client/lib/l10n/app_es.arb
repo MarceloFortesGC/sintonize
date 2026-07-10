@@ -1,0 +1,69 @@
+{
+  "@@locale": "es",
+
+  "appName": "Sintonize",
+
+  "languageLabel": "Idioma",
+  "languagePortuguese": "Português",
+  "languageEnglish": "English",
+  "languageSpanish": "Español",
+
+  "welcomeToRoom": "Bienvenido a la Sala",
+  "enterNameToContinue": "Escribe tu nombre para continuar",
+  "nameLabel": "Nombre",
+  "continueButton": "Continuar",
+
+  "greetingHowParticipate": "¡Hola, {name}! ¿Cómo vas a participar en la sala?",
+  "profileListenerTitle": "Oyente",
+  "profileListenerSubtitle": "Solo escuchar",
+  "profileHostTitle": "Anfitrión",
+  "profileHostSubtitle": "Transmite el micrófono",
+  "enterRoomButton": "Entrar a la Sala",
+
+  "micAccessTitle": "Acceso al micrófono",
+  "micAccessBody": "Para transmitir audio, necesitamos acceder a tu micrófono.",
+  "cancelButton": "Cancelar",
+  "allowButton": "Permitir",
+
+  "activeRoomTitle": "Sala Activa",
+  "exitButton": "Salir",
+
+  "statusConnected": "Conectado",
+  "statusConnecting": "Conectando…",
+  "statusReconnecting": "Reconectando…",
+  "statusLost": "Conexión perdida",
+
+  "connectionLostCheckNetwork": "Conexión perdida. Verifica tu red.",
+  "apIsolationWarning": "Conectado a la sala, pero el audio aún no ha llegado. Posibles causas: un firewall en la computadora transmisora bloqueando la conexión, o un router con \"Aislamiento de Cliente\" activado. La conexión sigue intentando.",
+  "forcedMutedWarning": "Tu audio fue silenciado por el administrador.",
+  "silentAudioWarning": "El sonido está llegando vacío. Verifica la fuente de audio en la Estación Central.",
+  "receivingAudio": "Recibiendo audio",
+  "waitingForTransmission": "Esperando transmisión…",
+
+  "transmittingSources": "{count, plural, one{Transmitiendo: 1 fuente} other{Transmitiendo: {count} fuentes}}",
+
+  "volumeLabel": "Volumen",
+  "retryButton": "Intentar de nuevo",
+
+  "leaveRoomTitle": "¿Salir de la Sala?",
+  "leaveRoomBody": "Esto terminará tu conexión y borrará tus datos en este dispositivo.",
+  "backButton": "Volver",
+  "confirmExitTitle": "¿Estás seguro?",
+  "confirmExitBody": "Deberás ingresar tu nombre y perfil nuevamente la próxima vez.",
+  "confirmExitButton": "Confirmar Salida",
+
+  "audioStoppedTitle": "El sonido se detuvo",
+  "audioStoppedBody": "¿Se desconectaron tus audífonos? Revísalos y toca para continuar.",
+  "connectHeadphonesTitle": "Conecta tus audífonos",
+  "connectHeadphonesBody": "Conecta tus audífonos o un dispositivo Bluetooth para escuchar con privacidad. El sonido solo comienza después de que toques el botón de abajo.",
+  "startListeningButton": "✔ Ya conecté — empezar a escuchar",
+  "tapToListenTitle": "Toca para escuchar",
+  "tapToListenBody": "Llegó un nuevo audio. Toca para escuchar.",
+  "playAudioButton": "Reproducir audio",
+
+  "useHeadphonesTitle": "Usa audífonos",
+  "useHeadphonesBody": "Conecta audífonos o un dispositivo Bluetooth para escuchar. El sonido por el altavoz fue bloqueado por privacidad.",
+  "headphoneAutoDetectNote": "En cuanto detectemos tus audífonos, la pantalla se libera automáticamente.",
+
+  "micBlockedError": "Micrófono bloqueado. Abre la configuración del navegador para permitir el acceso."
+}

@@ -1,0 +1,69 @@
+{
+  "@@locale": "en",
+
+  "appName": "Sintonize",
+
+  "languageLabel": "Language",
+  "languagePortuguese": "Português",
+  "languageEnglish": "English",
+  "languageSpanish": "Español",
+
+  "welcomeToRoom": "Welcome to the Room",
+  "enterNameToContinue": "Enter your name to continue",
+  "nameLabel": "Name",
+  "continueButton": "Continue",
+
+  "greetingHowParticipate": "Hi, {name}! How will you join the room?",
+  "profileListenerTitle": "Listener",
+  "profileListenerSubtitle": "Just listen",
+  "profileHostTitle": "Host",
+  "profileHostSubtitle": "Broadcasts microphone",
+  "enterRoomButton": "Enter Room",
+
+  "micAccessTitle": "Microphone access",
+  "micAccessBody": "To broadcast audio, we need access to your microphone.",
+  "cancelButton": "Cancel",
+  "allowButton": "Allow",
+
+  "activeRoomTitle": "Active Room",
+  "exitButton": "Leave",
+
+  "statusConnected": "Connected",
+  "statusConnecting": "Connecting…",
+  "statusReconnecting": "Reconnecting…",
+  "statusLost": "Connection lost",
+
+  "connectionLostCheckNetwork": "Connection lost. Check your network.",
+  "apIsolationWarning": "Connected to the room, but the audio hasn't arrived yet. Possible causes: a firewall on the broadcasting computer blocking the connection, or a router with \"Client Isolation\" enabled. The connection keeps trying.",
+  "forcedMutedWarning": "Your audio was muted by the administrator.",
+  "silentAudioWarning": "The sound is arriving empty. Check the audio source on the Central Station.",
+  "receivingAudio": "Receiving audio",
+  "waitingForTransmission": "Waiting for broadcast…",
+
+  "transmittingSources": "{count, plural, one{Broadcasting: 1 source} other{Broadcasting: {count} sources}}",
+
+  "volumeLabel": "Volume",
+  "retryButton": "Try again",
+
+  "leaveRoomTitle": "Leave the Room?",
+  "leaveRoomBody": "This will end your connection and erase your data on this device.",
+  "backButton": "Back",
+  "confirmExitTitle": "Are you sure?",
+  "confirmExitBody": "You will need to enter your name and profile again next time.",
+  "confirmExitButton": "Confirm Exit",
+
+  "audioStoppedTitle": "The sound stopped",
+  "audioStoppedBody": "Did your headphones disconnect? Check them and tap to continue.",
+  "connectHeadphonesTitle": "Connect your headphones",
+  "connectHeadphonesBody": "Connect your headphones or a Bluetooth device to listen privately. The sound only starts after you tap the button below.",
+  "startListeningButton": "✔ I'm connected — start listening",
+  "tapToListenTitle": "Tap to listen",
+  "tapToListenBody": "New audio has arrived. Tap to listen.",
+  "playAudioButton": "Play audio",
+
+  "useHeadphonesTitle": "Use headphones",
+  "useHeadphonesBody": "Connect headphones or a Bluetooth device to listen. Sound through the speaker was blocked for privacy.",
+  "headphoneAutoDetectNote": "As soon as we detect your headphones, the screen unlocks on its own.",
+
+  "micBlockedError": "Microphone blocked. Open your browser settings to allow access."
+}

@@ -47,6 +47,8 @@ dependencies:
   # helpers web-only (unlock de autoplay, VU meter, detecção de saída de
   # áudio) em lib/services/*_web.dart.
   web: ^1.1.0
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +66,10 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+
+  # Gera lib/l10n/app_localizations.dart a partir dos arquivos .arb
+  # (config em l10n.yaml) — internacionalização (pt/en/es).
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

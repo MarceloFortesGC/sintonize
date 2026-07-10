@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../config.dart';
+import '../l10n/app_localizations.dart';
+import '../services/locale_controller.dart';
 import '../services/preferences_service.dart';
 import '../theme.dart';
+import '../widgets/language_selector.dart';
 import 'onboarding_profile_screen.dart';
 
 /// Passo 1 do onboarding — nome (frontend_flow.md §B.2).
 class OnboardingNameScreen extends StatefulWidget {
   final PreferencesService prefs;
   final String baseUrl;
+  final LocaleController localeController;
   const OnboardingNameScreen({
     super.key,
     required this.prefs,
     required this.baseUrl,
+    required this.localeController,
   });
 
   @override
@@ -43,6 +48,7 @@ class _OnboardingNameScreenState extends State<OnboardingNameScreen> {
         builder: (_) => OnboardingProfileScreen(
           prefs: widget.prefs,
           baseUrl: widget.baseUrl,
+          localeController: widget.localeController,
           name: _controller.text.trim(),
         ),
       ),
@@ -51,7 +57,19 @@ class _OnboardingNameScreenState extends State<OnboardingNameScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: LanguageSelector(localeController: widget.localeController),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -74,15 +92,15 @@ class _OnboardingNameScreenState extends State<OnboardingNameScreen> {
                   ),
                   const SizedBox(height: 32),
                   Text(
-                    'Bem-vindo à Sala',
+                    l10n.welcomeToRoom,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Digite seu nome para continuar',
+                  Text(
+                    l10n.enterNameToContinue,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textMuted),
+                    style: const TextStyle(color: AppColors.textMuted),
                   ),
                   const SizedBox(height: 28),
                   TextField(
@@ -92,15 +110,15 @@ class _OnboardingNameScreenState extends State<OnboardingNameScreen> {
                     textInputAction: TextInputAction.done,
                     onChanged: (_) => setState(() {}),
                     onSubmitted: (_) => _continue(),
-                    decoration: const InputDecoration(
-                      labelText: 'Nome',
+                    decoration: InputDecoration(
+                      labelText: l10n.nameLabel,
                       counterText: '',
                     ),
                   ),
                   const SizedBox(height: 20),
                   FilledButton(
                     onPressed: _valid ? _continue : null,
-                    child: const Text('Continuar'),
+                    child: Text(l10n.continueButton),
                   ),
                 ],
               ),

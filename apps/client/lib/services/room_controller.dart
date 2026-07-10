@@ -34,7 +34,12 @@ class RoomController extends ChangeNotifier {
   double masterVolume = 1.0;
   bool forcedMuted = false;
   UserProfile? sessionProfileOverride;
-  String? micError;
+
+  /// True quando o navegador negou/bloqueou o acesso ao microfone. A
+  /// mensagem exibida é resolvida na UI (room_screen.dart) via
+  /// AppLocalizations — este controller não guarda texto de UI, só o
+  /// estado, para não depender de contexto de localização aqui.
+  bool micBlocked = false;
   bool apIsolationDetected = false;
   bool kicked = false;
   String kickedMessage = '';
@@ -105,10 +110,9 @@ class RoomController extends ChangeNotifier {
         'video': false,
       });
       _localStream = stream;
-      micError = null;
+      micBlocked = false;
     } catch (e) {
-      micError =
-          'Microfone bloqueado. Abra as configurações do navegador para permitir o acesso.';
+      micBlocked = true;
       sessionProfileOverride = UserProfile.listener;
     }
     notifyListeners();

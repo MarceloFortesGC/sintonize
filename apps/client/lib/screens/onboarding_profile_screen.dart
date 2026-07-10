@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/room_user.dart';
+import '../services/locale_controller.dart';
 import '../services/preferences_service.dart';
 import '../theme.dart';
+import '../widgets/language_selector.dart';
 import 'room_screen.dart';
 
 /// Passo 2 do onboarding — perfil (frontend_flow.md §B.3).
 class OnboardingProfileScreen extends StatefulWidget {
   final PreferencesService prefs;
   final String baseUrl;
+  final LocaleController localeController;
   final String name;
   const OnboardingProfileScreen({
     super.key,
     required this.prefs,
     required this.baseUrl,
+    required this.localeController,
     required this.name,
   });
 
@@ -43,31 +48,33 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) =>
-            RoomScreen(prefs: widget.prefs, baseUrl: widget.baseUrl),
+        builder: (_) => RoomScreen(
+          prefs: widget.prefs,
+          baseUrl: widget.baseUrl,
+          localeController: widget.localeController,
+        ),
       ),
       (route) => false,
     );
   }
 
   Future<bool?> _showMicDialog() {
+    final l10n = AppLocalizations.of(context);
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Acesso ao microfone'),
-        content: const Text(
-          'Para transmitir áudio, precisamos acessar seu microfone.',
-        ),
+        title: Text(l10n.micAccessTitle),
+        content: Text(l10n.micAccessBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+            child: Text(l10n.cancelButton),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
-            child: const Text('Permitir'),
+            child: Text(l10n.allowButton),
           ),
         ],
       ),
@@ -76,10 +83,17 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         leading: const BackButton(),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: LanguageSelector(localeController: widget.localeController),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Center(
@@ -92,7 +106,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Olá, ${widget.name}! Como você vai participar da sala?',
+                    l10n.greetingHowParticipate(widget.name),
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 28),
@@ -101,8 +115,8 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                       Expanded(
                         child: _ProfileCard(
                           icon: Icons.headphones,
-                          title: 'Ouvinte',
-                          subtitle: 'Apenas ouvir',
+                          title: l10n.profileListenerTitle,
+                          subtitle: l10n.profileListenerSubtitle,
                           selected: _selected == UserProfile.listener,
                           onTap: () =>
                               setState(() => _selected = UserProfile.listener),
@@ -112,8 +126,8 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                       Expanded(
                         child: _ProfileCard(
                           icon: Icons.mic,
-                          title: 'Host',
-                          subtitle: 'Transmite microfone',
+                          title: l10n.profileHostTitle,
+                          subtitle: l10n.profileHostSubtitle,
                           selected: _selected == UserProfile.host,
                           onTap: () =>
                               setState(() => _selected = UserProfile.host),
@@ -124,7 +138,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                   const SizedBox(height: 28),
                   FilledButton(
                     onPressed: _selected != null ? _enter : null,
-                    child: const Text('Entrar na Sala'),
+                    child: Text(l10n.enterRoomButton),
                   ),
                 ],
               ),
