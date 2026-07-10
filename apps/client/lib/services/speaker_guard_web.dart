@@ -27,6 +27,24 @@ class SpeakerGuard {
     return ua.contains('android');
   }
 
+  /// Feature-detect: em origem insegura (http://IP, nosso caso de uso via
+  /// QR code na LAN), `navigator.mediaDevices` simplesmente NÃO EXISTE em
+  /// Safari (iOS) e é omitido pelo Chrome fora de contexto seguro — a
+  /// propriedade volta `undefined`. `Navigator.mediaDevices` no package:web
+  /// é tipado como não-nulo (segue a spec), então o getter em si não
+  /// quebra; mas qualquer MÉTODO chamado sobre esse valor `undefined`
+  /// lança um TypeError de JS não capturado, que sobe e derruba o app
+  /// Flutter inteiro (tela branca). Por isso checamos a definição real do
+  /// valor JS antes de tocar em qualquer API de mediaDevices.
+  bool _mediaDevicesSupported() {
+    try {
+      final md = web.window.navigator.mediaDevices;
+      return (md as JSAny?).isDefinedAndNotNull;
+    } catch (_) {
+      return false;
+    }
+  }
+
   bool _looksLikeSpeakerLabel(String label) {
     final l = label.toLowerCase();
     return l.contains('speaker') ||
@@ -50,6 +68,7 @@ class SpeakerGuard {
   /// alto-falante do aparelho.
   Future<bool> isLikelySpeakerOutput() async {
     if (!_looksLikeAndroid()) return false;
+    if (!_mediaDevicesSupported()) return false;
 
     try {
       final devices =
@@ -89,26 +108,46 @@ class SpeakerGuard {
 
     check();
 
-    // package:web não expõe Streams prontas (diferente do antigo
-    // dart:html); usamos addEventListener bruto com uma JSFunction para
-    // poder remover no dispose().
-    // Corpo em bloco (não `=>`) para que o fechamento retorne `void`
-    // explicitamente — `.toJS` rejeita assinaturas que retornem Future.
-    final listener = ((web.Event _) {
-      check();
-    }).toJS;
-    _deviceChangeListener = listener;
-    web.window.navigator.mediaDevices
-        .addEventListener('devicechange', listener);
+    // O poll periódico é puro Dart (Timer), sem interop — sempre seguro,
+    // continua funcionando mesmo se o listener de `devicechange` abaixo
+    // não puder ser registrado (ex.: sem `mediaDevices`).
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) => check());
+
+    // A checagem periódica já é 100% defensiva e funciona (retornando
+    // false) mesmo sem `mediaDevices`. O `addEventListener('devicechange')`
+    // abaixo é só uma otimização (reage mais rápido a troca de fone) —
+    // nunca deve ser motivo de crash em origem insegura (ver
+    // `_mediaDevicesSupported`).
+    if (!_mediaDevicesSupported()) return;
+
+    try {
+      // package:web não expõe Streams prontas (diferente do antigo
+      // dart:html); usamos addEventListener bruto com uma JSFunction para
+      // poder remover no dispose().
+      // Corpo em bloco (não `=>`) para que o fechamento retorne `void`
+      // explicitamente — `.toJS` rejeita assinaturas que retornem Future.
+      final listener = ((web.Event _) {
+        check();
+      }).toJS;
+      _deviceChangeListener = listener;
+      web.window.navigator.mediaDevices
+          .addEventListener('devicechange', listener);
+    } catch (_) {
+      // Best-effort: se o interop falhar por qualquer motivo, seguimos só
+      // com o poll — nunca derrubamos o app.
+    }
   }
 
   void dispose() {
     _disposed = true;
     final listener = _deviceChangeListener;
-    if (listener != null) {
-      web.window.navigator.mediaDevices
-          .removeEventListener('devicechange', listener);
+    if (listener != null && _mediaDevicesSupported()) {
+      try {
+        web.window.navigator.mediaDevices
+            .removeEventListener('devicechange', listener);
+      } catch (_) {
+        // Best-effort.
+      }
     }
     _deviceChangeListener = null;
     _pollTimer?.cancel();

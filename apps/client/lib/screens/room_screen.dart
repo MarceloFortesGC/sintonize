@@ -271,15 +271,18 @@ class _RoomScreenState extends State<RoomScreen> {
                 ),
               ),
             ),
-            // Autoplay bloqueado (comum no primeiro carregamento, sobretudo
-            // no Safari iOS): exige um gesto real do usuário para tocar.
-            if (c.audioPlaybackBlocked) _playAudioOverlay(c),
+            // Portão de áudio único (substitui os antigos overlays
+            // separados de "Toque para ouvir" e bloqueio de alto-falante):
+            // cobre a tela sempre que o som ainda não foi confirmado pelo
+            // usuário, foi bloqueado pelo navegador, ou foi interrompido
+            // (fone desconectado). Nunca há dois overlays de áudio ao
+            // mesmo tempo — a prioridade abaixo garante isso.
+            if (_audioGateOverlayVisible(c)) _audioGateOverlay(c),
             // Best-effort: só cobre a tela quando há confiança de que o
             // som sai pelo alto-falante do aparelho (ver speaker_guard_web.dart).
-            // O overlay de autoplay tem prioridade — sem o gesto de
-            // desbloqueio não há som em saída nenhuma, e este overlay
-            // cobriria o botão "Tocar áudio".
-            if (_likelySpeakerOutput && !c.audioPlaybackBlocked)
+            // O portão de áudio tem prioridade — sem ele não há som saindo
+            // em nenhuma saída, e este overlay cobriria o botão do portão.
+            if (_likelySpeakerOutput && !_audioGateOverlayVisible(c))
               _speakerGuardOverlay(),
           ],
         ),
@@ -287,40 +290,82 @@ class _RoomScreenState extends State<RoomScreen> {
     );
   }
 
-  Widget _playAudioOverlay(RoomController c) {
+  /// True enquanto o áudio não estiver liberado: portão ainda não
+  /// confirmado (primeiro acesso/reload), tocada interrompida (fone
+  /// desconectou) ou um novo stream chegou bloqueado. Um único overlay
+  /// cobre os três casos — só o texto/ícone muda (ver [_audioGateOverlay]).
+  bool _audioGateOverlayVisible(RoomController c) =>
+      !c.audioGateConfirmed || c.audioInterrupted || c.audioPlaybackBlocked;
+
+  /// Portão de áudio único e obrigatório. O som nunca começa sozinho: só
+  /// o toque no botão (gesto real do usuário) chama play() — ver
+  /// RoomController.confirmAudioGate. Mesmo widget cobre três situações,
+  /// só muda o texto/ícone conforme o estado do controller.
+  Widget _audioGateOverlay(RoomController c) {
+    final IconData icon;
+    final String title;
+    final String body;
+    final String buttonLabel;
+
+    if (c.audioInterrupted) {
+      icon = Icons.headset_off;
+      title = 'O som parou';
+      body = 'Seu fone desconectou? Verifique o fone e toque para continuar.';
+      buttonLabel = 'Continuar';
+    } else if (!c.audioGateConfirmed) {
+      icon = Icons.headset;
+      title = 'Conecte seu fone de ouvido';
+      body = 'Conecte seu fone de ouvido ou aparelho Bluetooth para ouvir '
+          'com privacidade. O som só começa depois que você tocar no botão '
+          'abaixo.';
+      buttonLabel = '✔ Já conectei — começar a ouvir';
+    } else {
+      icon = Icons.volume_off;
+      title = 'Toque para ouvir';
+      body = 'Chegou um novo áudio. Toque para ouvir.';
+      buttonLabel = 'Tocar áudio';
+    }
+
     return Positioned.fill(
       child: ColoredBox(
-        color: Colors.black.withValues(alpha: 0.72),
+        color: AppColors.bg.withValues(alpha: 0.97),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
+            constraints: const BoxConstraints(maxWidth: 380),
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.volume_off, color: AppColors.text, size: 40),
+                  Icon(icon, color: AppColors.primary, size: 48),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Toque para ouvir',
-                    style: TextStyle(
+                  Text(
+                    title,
+                    style: const TextStyle(
                       color: AppColors.text,
-                      fontSize: 18,
+                      fontSize: 20,
                       fontWeight: FontWeight.w600,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'O navegador bloqueou a reprodução automática do som.',
-                    style: TextStyle(color: AppColors.textMuted),
+                  Text(
+                    body,
+                    style: const TextStyle(color: AppColors.textMuted),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                   FilledButton.icon(
-                    onPressed: () => c.retryAudioPlayback(),
+                    onPressed: () => c.confirmAudioGate(),
                     icon: const Icon(Icons.play_arrow),
-                    label: const Text('Tocar áudio'),
+                    label: Text(buttonLabel),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 56),
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ],
               ),

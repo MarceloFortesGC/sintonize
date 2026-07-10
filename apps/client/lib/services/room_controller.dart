@@ -39,10 +39,28 @@ class RoomController extends ChangeNotifier {
   bool kicked = false;
   String kickedMessage = '';
 
-  /// Web: true quando algum elemento de áudio/vídeo continua pausado após
-  /// tentativa de reprodução automática (autoplay bloqueado pelo
-  /// navegador). A Room View deve mostrar o botão "Tocar áudio" nesse caso.
+  /// Web: true quando algum elemento de áudio/vídeo com fonte continua
+  /// pausado (autoplay bloqueado, ou um novo stream chegou depois do
+  /// portão já confirmado e ainda não recebeu o toque). A Room View deve
+  /// mostrar o portão de áudio nesse caso.
   bool audioPlaybackBlocked = false;
+
+  /// Portão de confirmação de áudio (ver room_screen.dart): o som NUNCA
+  /// começa sozinho. Só vira `true` depois que o usuário toca o botão
+  /// "Já conectei — começar a ouvir", um gesto real exigido tanto para
+  /// contornar o autoplay do Safari quanto — mais importante — para
+  /// garantir que o usuário conectou o fone antes de qualquer som sair
+  /// (cenário: reunião silenciosa). Reseta a cada nova sessão/reload
+  /// porque é um campo de instância recriado do zero a cada RoomScreen.
+  bool audioGateConfirmed = false;
+
+  /// True quando um elemento de áudio que já estava tocando parou sozinho
+  /// (evento `pause` não solicitado pelo app) — o caso típico é o
+  /// fone Bluetooth/cabo desconectando, que faz iOS/Chrome pausar a mídia
+  /// automaticamente. Enquanto essa flag for true, a Room View volta a
+  /// mostrar o portão pedindo para o usuário verificar o fone e tocar de
+  /// novo — nunca retomamos o playback sozinhos (ver unlockAudioElements).
+  bool audioInterrupted = false;
 
   /// Nível RMS (0.0-1.0) do áudio remoto mais alto entre os transmissores
   /// atuais. Alimenta o VU meter real na Room View.
@@ -57,6 +75,11 @@ class RoomController extends ChangeNotifier {
   static const double _silenceThreshold = 0.02;
   DateTime? _silenceSince;
   bool _disposed = false;
+
+  /// True durante `_teardown()` (saída de sala / kick / dispose). Usado
+  /// para ignorar eventos `pause` disparados pelo próprio encerramento dos
+  /// renderers (não é uma "interrupção" de fone — é intencional).
+  bool _tearingDown = false;
 
   Timer? _reconnectUiTimer;
 
@@ -215,10 +238,16 @@ class RoomController extends ChangeNotifier {
       }
     }
     _applyMasterVolume();
-    // Web: tenta desmutar/reproduzir os elementos de mídia sempre que o
+    // Web: desmuta/ajusta volume dos elementos de mídia sempre que o
     // conjunto de streams remotos muda (ver web_audio_unlock_web.dart para
-    // o porquê disso ser necessário).
-    audioPlaybackBlocked = await unlockAudioElements(masterVolume);
+    // o porquê disso ser necessário). NÃO chama play() aqui — sem gesto do
+    // usuário — para não ressuscitar playback sozinho; um stream novo
+    // chegando depois do portão já confirmado volta a bloquear até o
+    // usuário tocar de novo (mesmo mecanismo do overlay único).
+    audioPlaybackBlocked = await unlockAudioElements(
+      masterVolume,
+      onUnexpectedPause: _handleUnexpectedPause,
+    );
     _updateAudioLevel();
     notifyListeners();
   }
@@ -232,8 +261,23 @@ class RoomController extends ChangeNotifier {
   Future<void> _reapplyWebVolume() async {
     // Web: Helper.setVolume nem sempre tem efeito sobre o elemento <audio>
     // de fato (depende do browser); aplicamos o volume também direto no
-    // elemento DOM.
-    audioPlaybackBlocked = await unlockAudioElements(masterVolume);
+    // elemento DOM. Mexer no volume não é o gesto de "começar a ouvir", só
+    // ajuste — por isso também sem attemptPlay.
+    audioPlaybackBlocked = await unlockAudioElements(
+      masterVolume,
+      onUnexpectedPause: _handleUnexpectedPause,
+    );
+    notifyListeners();
+  }
+
+  /// Chamado quando um elemento de áudio que já estava tocando pausa
+  /// sozinho (evento DOM `pause`, ver web_audio_unlock_web.dart). Ignorado
+  /// durante o teardown da sala (esse pause é intencional, não uma
+  /// desconexão de fone) e antes do portão ser confirmado (nesse ponto o
+  /// elemento nunca chegou a tocar de verdade).
+  void _handleUnexpectedPause() {
+    if (_disposed || _tearingDown || !audioGateConfirmed) return;
+    audioInterrupted = true;
     notifyListeners();
   }
 
@@ -251,14 +295,23 @@ class RoomController extends ChangeNotifier {
     }
   }
 
-  /// Chamado a partir de um gesto real do usuário (botão "Tocar áudio" na
-  /// Room View) para contornar bloqueios de autoplay e retomar
-  /// AudioContexts suspensos.
-  Future<void> retryAudioPlayback() async {
+  /// ÚNICO ponto do app que chama `play()` em elementos de mídia. Deve ser
+  /// invocado só a partir de um gesto real do usuário — o toque no botão
+  /// do portão de áudio ("Já conectei — começar a ouvir" no primeiro
+  /// acesso, ou "Toque para continuar" ao reaparecer após bloqueio/
+  /// interrupção). É esse tap que autoriza o autoplay no Safari/Chrome e
+  /// confirma que o usuário de fato conectou o fone antes do som sair.
+  Future<void> confirmAudioGate() async {
     for (final meter in _levelMeters.values) {
       await meter.resume();
     }
-    audioPlaybackBlocked = await unlockAudioElements(masterVolume);
+    audioGateConfirmed = true;
+    audioInterrupted = false;
+    audioPlaybackBlocked = await unlockAudioElements(
+      masterVolume,
+      attemptPlay: true,
+      onUnexpectedPause: _handleUnexpectedPause,
+    );
     notifyListeners();
   }
 
@@ -302,6 +355,7 @@ class RoomController extends ChangeNotifier {
   }
 
   Future<void> _teardown() async {
+    _tearingDown = true;
     _cancelReconnectUiTimer();
     for (final r in renderers.values) {
       await r.dispose();
