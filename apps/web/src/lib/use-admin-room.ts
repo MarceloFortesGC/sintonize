@@ -14,7 +14,11 @@ import {
   type UserUpdatedPayload,
 } from "@sintonize/shared";
 import { MeshManager } from "./webrtc/mesh-manager.js";
-import { createTauriAudioStream, isTauri } from "./tauri-audio.js";
+import {
+  createTauriAudioStream,
+  isTauri,
+  type TauriAudioBridge,
+} from "./tauri-audio.js";
 import {
   getAudioDevices,
   getCaptureStatus,
@@ -24,6 +28,17 @@ import {
 import type { AudioDevice } from "@sintonize/shared";
 
 const CAPTURE_DEVICE_KEY = "sintonize.captureDevice";
+const MIC_GAIN_KEY = "sintonize.micGain";
+
+function clampGain(value: number): number {
+  return Math.min(4, Math.max(0, value));
+}
+
+function readInitialMicGain(): number {
+  if (typeof window === "undefined") return 1;
+  const saved = Number(localStorage.getItem(MIC_GAIN_KEY));
+  return Number.isFinite(saved) ? clampGain(saved) : 1;
+}
 
 export interface AdminAudioLevel {
   rms: number;
@@ -44,6 +59,8 @@ export interface AdminRoomState {
   devices: AudioDevice[];
   audioLevel: AdminAudioLevel | null;
   peerStates: AdminPeerState[];
+  micGain: number;
+  setMicGain: (value: number) => void;
   selectDevice: (deviceId: string) => Promise<void>;
   refreshDevices: () => Promise<void>;
   rename: (userId: string, newName: string) => Promise<AckResponse<RoomUser>>;
@@ -73,10 +90,17 @@ export function useAdminRoom(): AdminRoomState {
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [audioLevel, setAudioLevel] = useState<AdminAudioLevel | null>(null);
   const [peerStates, setPeerStates] = useState<AdminPeerState[]>([]);
+  const [micGain, setMicGainState] = useState<number>(readInitialMicGain);
 
   const socketRef = useRef<Socket | null>(null);
   const meshRef = useRef<MeshManager | null>(null);
   const audioStopRef = useRef<(() => void) | null>(null);
+  // Bridge pode nascer depois do usuário já ter mexido no slider (ou antes
+  // do ROOM_JOINED disparar) — guardamos o valor num ref para aplicar assim
+  // que o bridge existir, e usamos o mesmo ref para repassar mudanças
+  // futuras sem depender de closures obsoletas do handler de socket.
+  const micGainRef = useRef(micGain);
+  const audioBridgeRef = useRef<TauriAudioBridge | null>(null);
 
   useEffect(() => {
     // Flag no escopo do effect (não do handler): ROOM_JOINED pode disparar
@@ -110,6 +134,8 @@ export function useAdminRoom(): AdminRoomState {
             return;
           }
           audioStopRef.current = bridge.stop;
+          audioBridgeRef.current = bridge;
+          bridge.setGain(micGainRef.current);
           mesh.setLocalStream(bridge.stream);
         }
       }
@@ -131,6 +157,7 @@ export function useAdminRoom(): AdminRoomState {
       meshRef.current = null;
       audioStopRef.current?.();
       audioStopRef.current = null;
+      audioBridgeRef.current = null;
       socket.disconnect();
       socketRef.current = null;
     };
@@ -204,6 +231,14 @@ export function useAdminRoom(): AdminRoomState {
     setCapture(await getCaptureStatus());
   }, []);
 
+  const setMicGain = useCallback((value: number) => {
+    const clamped = clampGain(value);
+    micGainRef.current = clamped;
+    setMicGainState(clamped);
+    localStorage.setItem(MIC_GAIN_KEY, String(clamped));
+    audioBridgeRef.current?.setGain(clamped);
+  }, []);
+
   const rename = useCallback((userId: string, newName: string) => {
     const socket = socketRef.current;
     if (!socket) return Promise.resolve<AckResponse<RoomUser>>({
@@ -248,6 +283,8 @@ export function useAdminRoom(): AdminRoomState {
     devices,
     audioLevel,
     peerStates,
+    micGain,
+    setMicGain,
     selectDevice,
     refreshDevices,
     rename,

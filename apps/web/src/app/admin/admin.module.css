@@ -405,3 +405,48 @@
   font-size: 12px;
   flex: none;
 }
+
+.gainLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.gainValue {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-text);
+  flex: none;
+}
+
+.gainSliderWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.gainSlider {
+  width: 100%;
+  accent-color: var(--color-primary);
+}
+
+.gainTick {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 10px;
+  background: var(--color-text-muted);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.gainWarning {
+  margin-top: 8px;
+  color: var(--color-accent);
+  font-size: 12px;
+}

@@ -32,6 +32,8 @@ export function AdminClient() {
     devices,
     audioLevel,
     peerStates,
+    micGain,
+    setMicGain,
     selectDevice,
     refreshDevices,
     rename,
@@ -109,6 +111,8 @@ export function AdminClient() {
             devices={devices}
             onSelect={(id) => void selectDevice(id)}
             onRefresh={() => void refreshDevices()}
+            micGain={micGain}
+            onMicGainChange={setMicGain}
           />
 
           <TransmissionMeter audioLevel={audioLevel} peerStates={peerStates} />
