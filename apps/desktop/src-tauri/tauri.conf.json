@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm --filter @sintonize/web dev",
     "devUrl": "http://localhost:3000/admin",
-    "beforeBuildCommand": "pnpm --filter @sintonize/web build",
+    "beforeBuildCommand": "node scripts/prepare-bundle.mjs",
     "frontendDist": "../dist"
   },
   "app": {
@@ -34,7 +34,11 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "externalBin": ["binaries/node"],
+    "resources": {
+      "resources/server/": "server"
+    }
   },
   "plugins": {}
 }
