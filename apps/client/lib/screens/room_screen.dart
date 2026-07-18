@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
+import '../l10n/app_localizations.dart';
+import '../services/locale_controller.dart';
 import '../services/preferences_service.dart';
 import '../services/room_controller.dart';
+import '../services/speaker_guard.dart';
 import '../theme.dart';
 import '../widgets/audio_level_indicator.dart';
+import '../widgets/language_selector.dart';
 import 'onboarding_name_screen.dart';
 
 /// Room View (frontend_flow.md §B.4).
 class RoomScreen extends StatefulWidget {
   final PreferencesService prefs;
   final String baseUrl;
-  const RoomScreen({super.key, required this.prefs, required this.baseUrl});
+  final LocaleController localeController;
+  const RoomScreen({
+    super.key,
+    required this.prefs,
+    required this.baseUrl,
+    required this.localeController,
+  });
 
   @override
   State<RoomScreen> createState() => _RoomScreenState();
@@ -19,7 +29,9 @@ class RoomScreen extends StatefulWidget {
 
 class _RoomScreenState extends State<RoomScreen> {
   late final RoomController _controller;
+  late final SpeakerGuard _speakerGuard;
   bool _redirected = false;
+  bool _likelySpeakerOutput = false;
   late double _masterVolume;
 
   @override
@@ -29,6 +41,14 @@ class _RoomScreenState extends State<RoomScreen> {
     _masterVolume = _controller.masterVolume;
     _controller.addListener(_onChange);
     _controller.connect();
+
+    // Best-effort (só web/Android com confiança suficiente — ver
+    // speaker_guard_web.dart): bloqueia a Room View enquanto o áudio
+    // parecer estar saindo pelo alto-falante do aparelho.
+    _speakerGuard = SpeakerGuard();
+    _speakerGuard.startWatching((likelySpeaker) {
+      if (mounted) setState(() => _likelySpeakerOutput = likelySpeaker);
+    });
   }
 
   void _onChange() {
@@ -41,10 +61,13 @@ class _RoomScreenState extends State<RoomScreen> {
             builder: (_) => OnboardingNameScreen(
               prefs: widget.prefs,
               baseUrl: widget.baseUrl,
+              localeController: widget.localeController,
             ),
           ),
           (route) => false,
         );
+        // Mensagem vinda do servidor (motivo do kick) — não é traduzida
+        // pelo cliente, exibida como o backend enviar.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
@@ -57,22 +80,22 @@ class _RoomScreenState extends State<RoomScreen> {
   void dispose() {
     _controller.removeListener(_onChange);
     _controller.dispose();
+    _speakerGuard.dispose();
     super.dispose();
   }
 
   Future<void> _confirmLeave() async {
+    final l10n = AppLocalizations.of(context);
     final step1 = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Sair da Sala?'),
-        content: const Text(
-          'Isso encerrará sua conexão e apagará seus dados neste dispositivo.',
-        ),
+        title: Text(l10n.leaveRoomTitle),
+        content: Text(l10n.leaveRoomBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+            child: Text(l10n.cancelButton),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -80,7 +103,7 @@ class _RoomScreenState extends State<RoomScreen> {
               backgroundColor: AppColors.danger,
               minimumSize: const Size(0, 44),
             ),
-            child: const Text('Sair'),
+            child: Text(l10n.exitButton),
           ),
         ],
       ),
@@ -91,14 +114,12 @@ class _RoomScreenState extends State<RoomScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Tem certeza?'),
-        content: const Text(
-          'Você precisará informar seu nome e perfil novamente na próxima vez.',
-        ),
+        title: Text(l10n.confirmExitTitle),
+        content: Text(l10n.confirmExitBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Voltar'),
+            child: Text(l10n.backButton),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -106,7 +127,7 @@ class _RoomScreenState extends State<RoomScreen> {
               backgroundColor: AppColors.danger,
               minimumSize: const Size(0, 44),
             ),
-            child: const Text('Confirmar Saída'),
+            child: Text(l10n.confirmExitButton),
           ),
         ],
       ),
@@ -120,22 +141,23 @@ class _RoomScreenState extends State<RoomScreen> {
         builder: (_) => OnboardingNameScreen(
           prefs: widget.prefs,
           baseUrl: widget.baseUrl,
+          localeController: widget.localeController,
         ),
       ),
       (route) => false,
     );
   }
 
-  String get _statusLabel {
+  String _statusLabel(AppLocalizations l10n) {
     switch (_controller.status) {
       case RoomStatus.connected:
-        return 'Conectado';
+        return l10n.statusConnected;
       case RoomStatus.connecting:
-        return 'Conectando…';
+        return l10n.statusConnecting;
       case RoomStatus.reconnecting:
-        return 'Reconectando…';
+        return l10n.statusReconnecting;
       case RoomStatus.lost:
-        return 'Conexão perdida';
+        return l10n.statusLost;
     }
   }
 
@@ -153,18 +175,23 @@ class _RoomScreenState extends State<RoomScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final c = _controller;
     final active = c.status == RoomStatus.connected && c.transmitterCount > 0;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.surface,
-        title: const Text('Sala Ativa'),
+        title: Text(l10n.activeRoomTitle),
         actions: [
+          LanguageSelector(localeController: widget.localeController),
+          const SizedBox(width: 4),
           TextButton(
             onPressed: _confirmLeave,
-            child: const Text('Sair', style: TextStyle(color: AppColors.text)),
+            child: Text(l10n.exitButton,
+                style: const TextStyle(color: AppColors.text)),
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: SafeArea(
@@ -195,30 +222,34 @@ class _RoomScreenState extends State<RoomScreen> {
                       if (c.status == RoomStatus.reconnecting ||
                           c.status == RoomStatus.lost)
                         _banner(
+                          context,
                           c.status == RoomStatus.lost
-                              ? 'Conexão perdida. Verifique sua rede.'
-                              : 'Reconectando…',
+                              ? l10n.connectionLostCheckNetwork
+                              : l10n.statusReconnecting,
                           showRetry: c.status == RoomStatus.lost,
                         ),
                       if (c.apIsolationDetected)
-                        _banner(
-                          'Não foi possível conectar diretamente na rede. '
-                          'Verifique se o roteador permite comunicação entre '
-                          'dispositivos (desative "Isolamento de Cliente").',
-                        ),
-                      if (c.micError != null) _banner(c.micError!),
+                        _banner(context, l10n.apIsolationWarning),
+                      if (c.micBlocked) _banner(context, l10n.micBlockedError),
                       if (c.forcedMuted)
-                        _banner('Seu áudio foi silenciado pelo administrador.'),
+                        _banner(context, l10n.forcedMutedWarning),
+                      if (active && c.silentAudioWarning)
+                        _banner(context, l10n.silentAudioWarning),
                       const SizedBox(height: 8),
                       Text(
-                        'Transmitindo: ${c.transmitterCount} fonte(s)',
+                        active
+                            ? l10n.receivingAudio
+                            : c.status == RoomStatus.connected
+                                ? l10n.waitingForTransmission
+                                : l10n.transmittingSources(c.transmitterCount),
                         style: Theme.of(context).textTheme.titleLarge,
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 20),
-                      AudioLevelIndicator(active: active),
+                      AudioLevelIndicator(active: active, level: c.audioLevel),
                       const SizedBox(height: 28),
-                      const Text('Volume',
-                          style: TextStyle(color: AppColors.textMuted)),
+                      Text(l10n.volumeLabel,
+                          style: const TextStyle(color: AppColors.textMuted)),
                       Slider(
                         value: _masterVolume,
                         onChanged: (value) {
@@ -240,7 +271,7 @@ class _RoomScreenState extends State<RoomScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(_statusLabel),
+                          Text(_statusLabel(l10n)),
                         ],
                       ),
                     ],
@@ -248,13 +279,161 @@ class _RoomScreenState extends State<RoomScreen> {
                 ),
               ),
             ),
+            // Portão de áudio único (substitui os antigos overlays
+            // separados de "Toque para ouvir" e bloqueio de alto-falante):
+            // cobre a tela sempre que o som ainda não foi confirmado pelo
+            // usuário, foi bloqueado pelo navegador, ou foi interrompido
+            // (fone desconectado). Nunca há dois overlays de áudio ao
+            // mesmo tempo — a prioridade abaixo garante isso.
+            if (_audioGateOverlayVisible(c)) _audioGateOverlay(context, c),
+            // Best-effort: só cobre a tela quando há confiança de que o
+            // som sai pelo alto-falante do aparelho (ver speaker_guard_web.dart).
+            // O portão de áudio tem prioridade — sem ele não há som saindo
+            // em nenhuma saída, e este overlay cobriria o botão do portão.
+            if (_likelySpeakerOutput && !_audioGateOverlayVisible(c))
+              _speakerGuardOverlay(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _banner(String message, {bool showRetry = false}) {
+  /// True enquanto o áudio não estiver liberado: portão ainda não
+  /// confirmado (primeiro acesso/reload), tocada interrompida (fone
+  /// desconectou) ou um novo stream chegou bloqueado. Um único overlay
+  /// cobre os três casos — só o texto/ícone muda (ver [_audioGateOverlay]).
+  bool _audioGateOverlayVisible(RoomController c) =>
+      !c.audioGateConfirmed || c.audioInterrupted || c.audioPlaybackBlocked;
+
+  /// Portão de áudio único e obrigatório. O som nunca começa sozinho: só
+  /// o toque no botão (gesto real do usuário) chama play() — ver
+  /// RoomController.confirmAudioGate. Mesmo widget cobre três situações,
+  /// só muda o texto/ícone conforme o estado do controller.
+  Widget _audioGateOverlay(BuildContext context, RoomController c) {
+    final l10n = AppLocalizations.of(context);
+    final IconData icon;
+    final String title;
+    final String body;
+    final String buttonLabel;
+
+    if (c.audioInterrupted) {
+      icon = Icons.headset_off;
+      title = l10n.audioStoppedTitle;
+      body = l10n.audioStoppedBody;
+      buttonLabel = l10n.continueButton;
+    } else if (!c.audioGateConfirmed) {
+      icon = Icons.headset;
+      title = l10n.connectHeadphonesTitle;
+      body = l10n.connectHeadphonesBody;
+      buttonLabel = l10n.startListeningButton;
+    } else {
+      icon = Icons.volume_off;
+      title = l10n.tapToListenTitle;
+      body = l10n.tapToListenBody;
+      buttonLabel = l10n.playAudioButton;
+    }
+
+    return Positioned.fill(
+      child: ColoredBox(
+        color: AppColors.bg.withValues(alpha: 0.97),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, color: AppColors.primary, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppColors.text,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    body,
+                    style: const TextStyle(color: AppColors.textMuted),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: () => c.confirmAudioGate(),
+                    icon: const Icon(Icons.play_arrow),
+                    label: Text(buttonLabel),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 56),
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _speakerGuardOverlay(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Positioned.fill(
+      child: ColoredBox(
+        color: AppColors.bg.withValues(alpha: 0.96),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.headset, color: AppColors.primary, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    l10n.useHeadphonesTitle,
+                    style: const TextStyle(
+                      color: AppColors.text,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n.useHeadphonesBody,
+                    style: const TextStyle(color: AppColors.textMuted),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.headphoneAutoDetectNote,
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _banner(BuildContext context, String message,
+      {bool showRetry = false}) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -269,7 +448,7 @@ class _RoomScreenState extends State<RoomScreen> {
           if (showRetry)
             TextButton(
               onPressed: () => _controller.connect(),
-              child: const Text('Tentar novamente'),
+              child: Text(l10n.retryButton),
             ),
         ],
       ),

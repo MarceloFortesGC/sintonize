@@ -370,15 +370,44 @@ export function initSignaling(httpServer: HTTPServer): Server {
 
     socket.on(EVENTS.LEAVE_ROOM, () => handleLeave(socket));
 
-    socket.on(EVENTS.WEBRTC_OFFER, (payload: WebRTCOfferPayload) =>
-      relayTo(payload.to, EVENTS.WEBRTC_OFFER, payload)
-    );
-    socket.on(EVENTS.WEBRTC_ANSWER, (payload: WebRTCAnswerPayload) =>
-      relayTo(payload.to, EVENTS.WEBRTC_ANSWER, payload)
-    );
-    socket.on(EVENTS.WEBRTC_ICE_CANDIDATE, (payload: WebRTCIceCandidatePayload) =>
-      relayTo(payload.to, EVENTS.WEBRTC_ICE_CANDIDATE, payload)
-    );
+    socket.on(EVENTS.WEBRTC_OFFER, (payload: WebRTCOfferPayload) => {
+      log("offer", payload.from?.slice(0, 8), "->", payload.to?.slice(0, 8));
+      relayTo(payload.to, EVENTS.WEBRTC_OFFER, payload);
+    });
+    socket.on(EVENTS.WEBRTC_ANSWER, (payload: WebRTCAnswerPayload) => {
+      log("answer", payload.from?.slice(0, 8), "->", payload.to?.slice(0, 8));
+      relayTo(payload.to, EVENTS.WEBRTC_ANSWER, payload);
+    });
+    socket.on(EVENTS.WEBRTC_ICE_CANDIDATE, (payload: WebRTCIceCandidatePayload) => {
+      const candObj = payload.candidate as {
+        candidate?: string;
+        sdpMid?: string | null;
+        sdpMLineIndex?: number | null;
+      } | null;
+      const cand = candObj?.candidate ?? "";
+      log("ice", payload.from?.slice(0, 8), "->", payload.to?.slice(0, 8), cand);
+      relayTo(payload.to, EVENTS.WEBRTC_ICE_CANDIDATE, payload);
+
+      // Navegadores mascaram candidatos host com mDNS (<uuid>.local), que
+      // frequentemente não resolve entre dispositivos na LAN (multicast
+      // bloqueado). O servidor conhece o IP real do remetente — relaya uma
+      // cópia desmascarada para garantir um par de candidatos utilizável.
+      const mdnsHost = cand.match(/\s([0-9a-f-]+\.local)\s/i)?.[1];
+      if (mdnsHost && candObj?.candidate) {
+        const realIp = socketIp(socket).replace(/^::ffff:/, "");
+        if (realIp && realIp !== "::1" && realIp !== "127.0.0.1") {
+          const unmasked = {
+            ...payload,
+            candidate: {
+              ...candObj,
+              candidate: candObj.candidate.replace(mdnsHost, realIp),
+            },
+          };
+          log("ice-unmasked", payload.from?.slice(0, 8), "->", payload.to?.slice(0, 8), realIp);
+          relayTo(payload.to, EVENTS.WEBRTC_ICE_CANDIDATE, unmasked);
+        }
+      }
+    });
 
     socket.on(EVENTS.ADMIN_RENAME_USER, handleRename);
     socket.on(EVENTS.ADMIN_MUTE_USER, handleMute);

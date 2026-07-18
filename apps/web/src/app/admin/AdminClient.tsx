@@ -8,6 +8,8 @@ import {
 import { useAdminRoom } from "@/lib/use-admin-room";
 import { QrCodePanel } from "./QrCodePanel";
 import { DeviceList } from "./DeviceList";
+import { CapturePanel } from "./CapturePanel";
+import { TransmissionMeter } from "./TransmissionMeter";
 import styles from "./admin.module.css";
 
 function estimateMeshConnections(
@@ -22,8 +24,22 @@ function estimateMeshConnections(
 }
 
 export function AdminClient() {
-  const { connected, users, localIp, capture, rename, mute, kick } =
-    useAdminRoom();
+  const {
+    connected,
+    users,
+    localIp,
+    capture,
+    devices,
+    audioLevel,
+    peerStates,
+    micGain,
+    setMicGain,
+    selectDevice,
+    refreshDevices,
+    rename,
+    mute,
+    kick,
+  } = useAdminRoom();
 
   const [ipChanged, setIpChanged] = useState(false);
   const prevIp = useRef<string | null>(null);
@@ -90,6 +106,17 @@ export function AdminClient() {
             onKick={kick}
           />
 
+          <CapturePanel
+            capture={capture}
+            devices={devices}
+            onSelect={(id) => void selectDevice(id)}
+            onRefresh={() => void refreshDevices()}
+            micGain={micGain}
+            onMicGainChange={setMicGain}
+          />
+
+          <TransmissionMeter audioLevel={audioLevel} peerStates={peerStates} />
+
           <div className={styles.card} style={{ marginTop: 24 }}>
             <div className={styles.sectionTitle}>Carga da sala</div>
             <div className={`${styles.address} mono`}>
@@ -113,12 +140,6 @@ export function AdminClient() {
               <div className={styles.footRow}>
                 Carga elevada. A malha P2P pode degradar com muitos
                 transmissores.
-              </div>
-            )}
-            {capture.error && (
-              <div className={styles.footRow}>
-                Captura: {capture.error}. Verifique o dispositivo de loopback do
-                sistema.
               </div>
             )}
           </div>

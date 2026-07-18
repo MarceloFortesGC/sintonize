@@ -75,11 +75,28 @@ class WebRTCService {
       });
     };
 
-    pc.onTrack = (event) {
+    pc.onTrack = (event) async {
       if (event.streams.isNotEmpty) {
         remoteStreams[peerId] = event.streams.first;
-        onStreamsChanged?.call();
+      } else {
+        // Track sem stream associado (sender remoto sem a=msid):
+        // embrulha em um stream local para não descartar o áudio.
+        //
+        // ATENÇÃO (web): `createLocalMediaStream` no dart_webrtc sempre
+        // cria o MediaStream com `ownerTag = 'local'`, independente do
+        // rótulo passado aqui. O RTCVideoRenderer web usa esse ownerTag
+        // para decidir `muted` do <audio> que ele cria
+        // (`muted = stream.ownerTag == 'local'`), então esse caminho
+        // SEMPRE resulta em áudio mudo no navegador — sintoma:
+        // "Recebendo áudio" na UI mas silêncio total no fone. A correção
+        // fica em web_audio_unlock_web.dart (chamada em
+        // RoomController._syncRenderers), que força `muted = false` nos
+        // elementos de mídia depois que o srcObject é atribuído.
+        final wrapper = await createLocalMediaStream('remote-$peerId');
+        await wrapper.addTrack(event.track);
+        remoteStreams[peerId] = wrapper;
       }
+      onStreamsChanged?.call();
     };
 
     pc.onIceConnectionState = (state) {

@@ -1,0 +1,92 @@
+{
+  "@@locale": "pt",
+
+  "appName": "Sintonize",
+  "@appName": {
+    "description": "Nome do app, exibido na tela inicial do onboarding."
+  },
+
+  "languageLabel": "Idioma",
+  "@languageLabel": {
+    "description": "Rótulo de acessibilidade do seletor de idioma."
+  },
+  "languagePortuguese": "Português",
+  "languageEnglish": "English",
+  "languageSpanish": "Español",
+
+  "welcomeToRoom": "Bem-vindo à Sala",
+  "enterNameToContinue": "Digite seu nome para continuar",
+  "nameLabel": "Nome",
+  "continueButton": "Continuar",
+
+  "greetingHowParticipate": "Olá, {name}! Como você vai participar da sala?",
+  "@greetingHowParticipate": {
+    "description": "Pergunta na tela de escolha de perfil, com o nome do usuário.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Maria"
+      }
+    }
+  },
+  "profileListenerTitle": "Ouvinte",
+  "profileListenerSubtitle": "Apenas ouvir",
+  "profileHostTitle": "Host",
+  "profileHostSubtitle": "Transmite microfone",
+  "enterRoomButton": "Entrar na Sala",
+
+  "micAccessTitle": "Acesso ao microfone",
+  "micAccessBody": "Para transmitir áudio, precisamos acessar seu microfone.",
+  "cancelButton": "Cancelar",
+  "allowButton": "Permitir",
+
+  "activeRoomTitle": "Sala Ativa",
+  "exitButton": "Sair",
+
+  "statusConnected": "Conectado",
+  "statusConnecting": "Conectando…",
+  "statusReconnecting": "Reconectando…",
+  "statusLost": "Conexão perdida",
+
+  "connectionLostCheckNetwork": "Conexão perdida. Verifique sua rede.",
+  "apIsolationWarning": "Conectado à sala, mas o áudio ainda não chegou. Possíveis causas: firewall do computador transmissor bloqueando a conexão, ou roteador com \"Isolamento de Cliente\" ativado. A conexão continua tentando.",
+  "forcedMutedWarning": "Seu áudio foi silenciado pelo administrador.",
+  "silentAudioWarning": "O som está chegando vazio. Verifique a fonte de áudio na Estação Central.",
+  "receivingAudio": "Recebendo áudio",
+  "waitingForTransmission": "Aguardando transmissão…",
+
+  "transmittingSources": "{count, plural, one{Transmitindo: 1 fonte} other{Transmitindo: {count} fontes}}",
+  "@transmittingSources": {
+    "description": "Contagem de fontes transmitindo, exibida enquanto a sala ainda não está conectada.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "volumeLabel": "Volume",
+  "retryButton": "Tentar novamente",
+
+  "leaveRoomTitle": "Sair da Sala?",
+  "leaveRoomBody": "Isso encerrará sua conexão e apagará seus dados neste dispositivo.",
+  "backButton": "Voltar",
+  "confirmExitTitle": "Tem certeza?",
+  "confirmExitBody": "Você precisará informar seu nome e perfil novamente na próxima vez.",
+  "confirmExitButton": "Confirmar Saída",
+
+  "audioStoppedTitle": "O som parou",
+  "audioStoppedBody": "Seu fone desconectou? Verifique o fone e toque para continuar.",
+  "connectHeadphonesTitle": "Conecte seu fone de ouvido",
+  "connectHeadphonesBody": "Conecte seu fone de ouvido ou aparelho Bluetooth para ouvir com privacidade. O som só começa depois que você tocar no botão abaixo.",
+  "startListeningButton": "✔ Já conectei — começar a ouvir",
+  "tapToListenTitle": "Toque para ouvir",
+  "tapToListenBody": "Chegou um novo áudio. Toque para ouvir.",
+  "playAudioButton": "Tocar áudio",
+
+  "useHeadphonesTitle": "Use fone de ouvido",
+  "useHeadphonesBody": "Conecte um fone de ouvido ou aparelho Bluetooth para ouvir. O som pelo alto-falante foi bloqueado por privacidade.",
+  "headphoneAutoDetectNote": "Assim que detectarmos o fone, a tela libera sozinha.",
+
+  "micBlockedError": "Microfone bloqueado. Abra as configurações do navegador para permitir o acesso."
+}

@@ -74,7 +74,7 @@ packages:
     source: hosted
     version: "1.0.9"
   dart_webrtc:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: dart_webrtc
       sha256: f6d615bddea5e458ce180a914f3055c234ffb52fb7397a51b3491e76d6d7edb2
@@ -126,6 +126,11 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.0"
+  flutter_localizations:
+    dependency: "direct main"
+    description: flutter
+    source: sdk
+    version: "0.0.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -152,6 +157,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.2"
+  intl:
+    dependency: transitive
+    description:
+      name: intl
+      sha256: "3df61194eb431efc39c4ceba583b95633a403f46c9fd341e550ce0bfa50e9aa5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.20.2"
   jni:
     dependency: transitive
     description:
@@ -510,7 +523,7 @@ packages:
     source: hosted
     version: "15.2.0"
   web:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: web
       sha256: "868d88a33d8a87b18ffc05f9f030ba328ffefba92d6c127917a2ba740f9cfe4a"

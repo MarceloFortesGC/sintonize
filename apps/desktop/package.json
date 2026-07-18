@@ -5,9 +5,11 @@
   "scripts": {
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "prepare-bundle": "node scripts/prepare-bundle.mjs"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.1.0"
+    "@tauri-apps/cli": "^2.1.0",
+    "esbuild": "^0.28.1"
   }
 }

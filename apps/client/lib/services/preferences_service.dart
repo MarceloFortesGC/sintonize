@@ -10,6 +10,7 @@ class PreferencesService {
   static const _kUserProfile = 'user_profile';
   static const _kOnboardingCompleted = 'onboarding_completed';
   static const _kLastRoomUrl = 'last_room_url';
+  static const _kLocale = 'sintonize.locale';
 
   final SharedPreferences _prefs;
   PreferencesService(this._prefs);
@@ -65,5 +66,23 @@ class PreferencesService {
   Future<void> setLastRoomUrl(String url) =>
       _prefs.setString(_kLastRoomUrl, url);
 
-  Future<void> clear() => _prefs.clear();
+  /// Código de idioma escolhido manualmente pelo usuário (ex. 'pt', 'en',
+  /// 'es'). `null` quando o usuário nunca escolheu — nesse caso o app usa
+  /// detecção automática do idioma do dispositivo (ver LocaleController).
+  String? get userLocale => _prefs.getString(_kLocale);
+
+  Future<void> setUserLocale(String languageCode) =>
+      _prefs.setString(_kLocale, languageCode);
+
+  /// Limpa os dados da sessão (nome, perfil, id) ao sair/ser removido da
+  /// sala. O idioma é uma preferência de dispositivo, não de sessão — deve
+  /// sobreviver a esse reset (ver requisito de persistência da escolha de
+  /// idioma).
+  Future<void> clear() async {
+    final locale = userLocale;
+    await _prefs.clear();
+    if (locale != null) {
+      await _prefs.setString(_kLocale, locale);
+    }
+  }
 }

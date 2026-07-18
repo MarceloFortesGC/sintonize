@@ -1,0 +1,16 @@
+# Permissão de aplicação: comandos da Admin UI (Estação Central).
+# Necessária porque no app instalado a janela carrega http://localhost:3000
+# (origem remota para o ACL do Tauri) — comandos do app só são liberados
+# por padrão para o frontend local (frontendDist/devUrl).
+"$schema" = "schemas/schema.json"
+
+[[permission]]
+identifier = "allow-admin-commands"
+description = "Comandos da Estação Central usados pela Admin UI (IP local, dispositivos e captura de áudio)."
+commands.allow = [
+  "get_local_ip",
+  "get_audio_devices",
+  "start_capture",
+  "stop_capture",
+  "get_capture_status",
+]

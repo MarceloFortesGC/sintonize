@@ -3,5 +3,12 @@
   "identifier": "default",
   "description": "Permissões padrão da Estação Central",
   "windows": ["main"],
-  "permissions": ["core:default", "shell:allow-open"]
+  "remote": {
+    "urls": ["http://localhost:3000"]
+  },
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "allow-admin-commands"
+  ]
 }

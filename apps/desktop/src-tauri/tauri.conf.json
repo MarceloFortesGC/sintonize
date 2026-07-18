@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm --filter @sintonize/web dev",
     "devUrl": "http://localhost:3000/admin",
-    "beforeBuildCommand": "pnpm --filter @sintonize/web build",
+    "beforeBuildCommand": "node scripts/prepare-bundle.mjs",
     "frontendDist": "../dist"
   },
   "app": {
@@ -17,7 +17,8 @@
         "height": 720,
         "minWidth": 900,
         "minHeight": 600,
-        "url": "http://localhost:3000/admin"
+        "url": "http://localhost:3000/admin",
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,WebRtcHideLocalIpsWithMdns --autoplay-policy=no-user-gesture-required"
       }
     ],
     "security": {
@@ -33,7 +34,11 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "externalBin": ["binaries/node"],
+    "resources": {
+      "resources/server/": "server"
+    }
   },
   "plugins": {}
 }

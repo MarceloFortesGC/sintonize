@@ -50,6 +50,14 @@ export class MeshManager {
     }
   }
 
+  /** Snapshot do estado de conexão de cada peer, para exibição na Admin UI. */
+  getPeerStates(): { peerId: string; connectionState: RTCPeerConnectionState }[] {
+    return [...this.peers.entries()].map(([peerId, { pc }]) => ({
+      peerId,
+      connectionState: pc.connectionState,
+    }));
+  }
+
   private registerSocketHandlers(): void {
     this.socket.on(
       EVENTS.WEBRTC_PEER_REQUIRED,
@@ -77,7 +85,16 @@ export class MeshManager {
     const pc = new RTCPeerConnection(RTC_CONFIG);
     const entry: PeerEntry = { pc, makingOffer: false, iceTimer: null };
 
+    // Garante uma m-line de áudio mesmo antes do stream local existir —
+    // sem ela o offer sai vazio e o max-bundle rejeita o SDP.
+    pc.addTransceiver("audio", { direction: "sendonly" });
     this.attachTracks(pc);
+
+    // Renegocia quando tracks são adicionadas depois do offer inicial.
+    pc.onnegotiationneeded = () => {
+      if (entry.makingOffer || pc.signalingState !== "stable") return;
+      void this.makeOffer(peerId, entry);
+    };
 
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
@@ -115,12 +132,26 @@ export class MeshManager {
 
   private attachTracks(pc: RTCPeerConnection): void {
     if (!this.localStream) return;
-    const senders = pc.getSenders();
-    for (const track of this.localStream.getAudioTracks()) {
-      const alreadyAttached = senders.some((s) => s.track === track);
-      if (!alreadyAttached) {
-        pc.addTrack(track, this.localStream);
+    const track = this.localStream.getAudioTracks()[0];
+    if (!track) return;
+
+    // Reusa o transceiver sendonly criado no ensurePeer: replaceTrack não
+    // exige renegociação quando a m-line já foi negociada.
+    const audioTx = pc
+      .getTransceivers()
+      .find((t) => t.receiver.track?.kind === "audio");
+    if (audioTx) {
+      if (audioTx.sender.track !== track) {
+        void audioTx.sender.replaceTrack(track);
       }
+      audioTx.direction = "sendonly";
+      // Associa o stream ao sender (a=msid no SDP) — sem isso o receptor
+      // recebe a track com event.streams vazio e a descarta.
+      if (typeof audioTx.sender.setStreams === "function") {
+        audioTx.sender.setStreams(this.localStream);
+      }
+    } else {
+      pc.addTrack(track, this.localStream);
     }
   }
 
